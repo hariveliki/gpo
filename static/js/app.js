@@ -141,7 +141,14 @@ function renderDashboard() {
         </div>`;
     }
 
+    const demoNotice = m.is_demo
+        ? `<div style="background:rgba(245,158,11,.1);border:1px solid var(--accent-amber);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:20px;font-size:.85rem;color:var(--accent-amber);text-align:center;">
+            Demo Mode – Live market data unavailable. Showing synthetic data for demonstration. Set GPO_DEMO=0 to disable.
+           </div>`
+        : '';
+
     el('dashboard-content').innerHTML = `
+        ${demoNotice}
         <!-- Regime Banner -->
         <div class="card" style="text-align:center; padding:32px;">
             <div class="regime-badge ${rc}" style="margin:0 auto 16px;">
@@ -211,9 +218,12 @@ function renderDashboard() {
         </div>
 
         <p style="text-align:center;color:var(--text-muted);font-size:.78rem;margin-top:8px;">
-            Last updated: ${m.last_updated}
+            Last updated: ${m.last_updated}${m.is_demo ? ' (Demo)' : ''}
         </p>
     `;
+
+    const badge = el('updated-badge');
+    if (badge) badge.textContent = m.is_demo ? 'Demo Mode' : m.last_updated;
 
     renderCharts(m.price_chart, m.drawdown_chart);
 }

@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 _CACHE: dict = {}
 _CACHE_TTL = dt.timedelta(minutes=30)
 
+# Controls whether to use synthetic demo data when live feeds are unreachable
+USE_DEMO_FALLBACK = os.environ.get("GPO_DEMO", "1") == "1"
+
 
 def _is_fresh(key: str) -> bool:
     if key not in _CACHE:
@@ -177,17 +180,56 @@ def fetch_credit_spread(fred_api_key: Optional[str] = None) -> Optional[float]:
     return None
 
 
+def _generate_demo_data() -> tuple[pd.DataFrame, float, float]:
+    """
+    Generate realistic synthetic market data for demonstration purposes.
+    Simulates ~2 years of price history with a mild correction and recovery.
+    """
+    np.random.seed(42)
+    n_days = 504
+    end_date = dt.date.today()
+    dates = pd.bdate_range(end=end_date, periods=n_days)
+
+    # Base uptrend with a ~15% correction mid-series and recovery
+    t = np.linspace(0, 1, n_days)
+    trend = 100 + 30 * t
+    # Add a dip around 60-70% through the series
+    dip_center = int(n_days * 0.65)
+    dip = -12 * np.exp(-0.5 * ((np.arange(n_days) - dip_center) / 30) ** 2)
+    noise = np.random.normal(0, 0.8, n_days).cumsum() * 0.15
+    prices = trend + dip + noise
+    prices = np.maximum(prices, 50)
+
+    df = pd.DataFrame({"close": prices}, index=dates)
+
+    demo_vix = 16.42
+    demo_spread = 1.35
+
+    return df, demo_vix, demo_spread
+
+
 def fetch_dashboard_data() -> dict:
     """Aggregate all market data needed for the regime dashboard."""
     hist = fetch_index_history()
-    dd_info = compute_drawdown(hist)
     vix = fetch_vix()
     spread = fetch_credit_spread()
 
-    # Build a small drawdown chart (last 252 trading days ≈ 1 year)
+    # Fall back to demo data when live feeds are unavailable
+    is_demo = False
+    if hist.empty and USE_DEMO_FALLBACK:
+        logger.info("Live data unavailable – using demo data")
+        hist, vix_demo, spread_demo = _generate_demo_data()
+        if vix is None:
+            vix = vix_demo
+        if spread is None:
+            spread = spread_demo
+        is_demo = True
+
+    dd_info = compute_drawdown(hist)
+
     chart_data = []
     if not hist.empty:
-        recent = hist.tail(504)  # ~2 years
+        recent = hist.tail(504)
         running_max = recent["close"].cummax()
         dd_series = ((recent["close"] - running_max) / running_max) * 100
         for date, val in dd_series.items():
@@ -207,5 +249,6 @@ def fetch_dashboard_data() -> dict:
         "credit_spread": spread,
         "drawdown_chart": chart_data,
         "price_chart": price_chart,
+        "is_demo": is_demo,
         "last_updated": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
