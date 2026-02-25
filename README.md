@@ -1,6 +1,6 @@
 # Global Portfolio One – Welt AG Replication
 
-A web application that replicates Dr. Andreas Beck's **Global Portfolio One (GPO)** investment strategy, implementing the "Welt AG" Equal-Value-Index approach with dynamic regime-based asset allocation.
+A web application that replicates the **Global Portfolio One (GPO)** investment strategy, implementing the "Welt AG" Equal-Value-Index approach with dynamic regime-based asset allocation.
 
 ## Features
 
@@ -22,8 +22,8 @@ The equity sleeve uses an **Equal-Value-Index** that underweights expensive regi
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
-python3 app.py
+uv sync --group dev
+uv run python app.py
 ```
 
 Open http://localhost:5000 in your browser.
@@ -52,18 +52,18 @@ Open http://localhost:5000 in your browser.
 │   └── js/app.js           # Frontend logic & canvas charts
 ├── tests/
 │   └── test_engine.py      # 28 unit tests
-└── requirements.txt
+├── pyproject.toml          # Dependencies and project metadata for uv
+└── uv.lock                 # Locked dependency resolution
 ```
 
 ## Running Tests
 
 ```bash
-pip install pytest
-python3 -m pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ## Production
 
 ```bash
-gunicorn app:app --bind 0.0.0.0:8000 --workers 2
+uv run gunicorn app:app --bind 0.0.0.0:8000 --workers 2
 ```

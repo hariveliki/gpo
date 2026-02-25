@@ -1,6 +1,6 @@
 """
 Configuration constants for the Global Portfolio One replication.
-Based on Dr. Andreas Beck's Equal-Value-Index methodology.
+Based on the Equal-Value-Index methodology.
 """
 
 # --------------------------------------------------------------------------- #

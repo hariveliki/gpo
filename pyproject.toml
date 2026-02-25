@@ -1,0 +1,19 @@
+[project]
+name = "global-portfolio-one"
+version = "0.1.0"
+description = "Replication of the Global Portfolio One strategy."
+requires-python = ">=3.10"
+dependencies = [
+    "flask==3.1.0",
+    "yfinance==0.2.51",
+    "requests==2.32.3",
+    "numpy==2.2.3",
+    "pandas==2.2.3",
+    "gunicorn==23.0.0",
+    "python-dotenv>=1.2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]

@@ -1,7 +1,7 @@
 """
 Global Portfolio One – Welt AG Replication Dashboard
 
-A Flask application that implements Dr. Andreas Beck's GPO strategy:
+A Flask application that implements the GPO strategy:
   • Equal-Value-Index regional weighting ("Welt AG")
   • Three-regime dynamic asset allocation
   • Anti-cyclical rebalancing protocol
@@ -12,7 +12,11 @@ from __future__ import annotations
 import dataclasses
 import logging
 
+from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
+
+# Load local .env before importing modules that read env vars at import time.
+load_dotenv()
 
 from engine.allocator import compute_allocation
 from engine.config import EQUITY_WEIGHTS, ETFS, RESERVE_WEIGHTS, SIMPLE_ETFS
