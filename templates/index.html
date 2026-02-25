@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Portfolio One – Welt AG Replication</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234a8eff'/><text x='50%25' y='54%25' dominant-baseline='central' text-anchor='middle' fill='white' font-size='16' font-weight='bold' font-family='sans-serif'>W</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <div class="logo-icon">W</div>
+                <div class="brand">
+                    <h1>Global Portfolio One</h1>
+                    <p>Welt AG Replication &middot; GPO Strategy</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+                <span class="updated-badge" id="updated-badge">Loading…</span>
+                <button class="btn btn-outline" id="btn-refresh">Refresh</button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-dashboard">Regime Dashboard</button>
+            <button class="tab-btn" data-tab="tab-allocator">Portfolio Allocator</button>
+            <button class="tab-btn" data-tab="tab-simulator">Regime Simulator</button>
+            <button class="tab-btn" data-tab="tab-reference">Reference Tables</button>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 1: Regime Dashboard                                       -->
+        <!-- ============================================================= -->
+        <div id="tab-dashboard" class="tab-panel active">
+            <div id="dashboard-content">
+                <div class="loading-overlay"><span class="spinner"></span> Loading market data…</div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 2: Portfolio Allocator                                    -->
+        <!-- ============================================================= -->
+        <div id="tab-allocator" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Portfolio Allocation Calculator</h2>
+                </div>
+                <p class="description-block">
+                    Enter your total portfolio value to compute the exact target amounts
+                    for each ETF in both the Scientific (6-ETF) and Simplified (3-ETF)
+                    models. Allocations automatically adjust based on the current market regime.
+                </p>
+                <div style="display:flex;gap:16px;align-items:flex-end;margin-top:20px;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1;min-width:200px;">
+                        <label for="portfolio-value">Total Portfolio Value (€)</label>
+                        <input type="number" id="portfolio-value" value="100000" min="1000" step="1000">
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary" id="btn-allocate">Calculate Allocation</button>
+                    </div>
+                </div>
+            </div>
+            <div id="alloc-results"></div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 3: Regime Simulator                                       -->
+        <!-- ============================================================= -->
+        <div id="tab-simulator" class="tab-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Regime Simulator</h2>
+                </div>
+                <p class="description-block">
+                    Test hypothetical market scenarios. Enter a drawdown level, credit
+                    spread, and VIX to see which regime would be triggered and how your
+                    portfolio allocation would shift.
+                </p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px;">
+                    <div class="form-group">
+                        <label for="sim-drawdown">Drawdown from ATH (%)</label>
+                        <input type="number" id="sim-drawdown" value="-25" step="1" min="-80" max="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="sim-spread">Credit Spread (BBB OAS %)</label>
+                        <input type="number" id="sim-spread" value="3.5" step="0.1" min="0" max="15">
+                    </div>
+                    <div class="form-group">
+                        <label for="sim-vix">VIX Level</label>
+                        <input type="number" id="sim-vix" value="35" step="1" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="sim-pv">Portfolio Value (€)</label>
+                        <input type="number" id="sim-pv" value="100000" step="1000" min="1000">
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="btn-simulate" style="margin-top:8px;">Run Simulation</button>
+            </div>
+            <div id="sim-results"></div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 4: Reference Tables                                       -->
+        <!-- ============================================================= -->
+        <div id="tab-reference" class="tab-panel">
+            <div id="reference-content">
+                <div class="loading-overlay"><span class="spinner"></span> Loading reference data…</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

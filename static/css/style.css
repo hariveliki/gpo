@@ -1,0 +1,514 @@
+/* ========================================================================= */
+/* Global Portfolio One – Welt AG Replication Dashboard                      */
+/* ========================================================================= */
+
+:root {
+    --bg-primary:    #0f1117;
+    --bg-secondary:  #1a1d2e;
+    --bg-card:       #1e2235;
+    --bg-hover:      #252a40;
+    --border:        #2d3348;
+    --text-primary:  #e4e6f0;
+    --text-secondary:#8b90a5;
+    --text-muted:    #5d6178;
+    --accent-blue:   #4a8eff;
+    --accent-green:  #22c55e;
+    --accent-red:    #ef4444;
+    --accent-amber:  #f59e0b;
+    --accent-purple: #a78bfa;
+    --accent-cyan:   #06b6d4;
+    --regime-a:      #22c55e;
+    --regime-b:      #f59e0b;
+    --regime-c:      #ef4444;
+    --radius:        12px;
+    --radius-sm:     8px;
+    --shadow:        0 4px 24px rgba(0,0,0,.3);
+    --transition:    all .2s ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* --- Typography ---------------------------------------------------------- */
+
+h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.02em; }
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.1rem; }
+
+/* --- Layout -------------------------------------------------------------- */
+
+.app-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+header .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+header .logo-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: white;
+}
+
+header .brand h1 { margin-bottom: 2px; }
+header .brand p { color: var(--text-secondary); font-size: .82rem; }
+
+.updated-badge {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: .78rem;
+    color: var(--text-secondary);
+}
+
+/* --- Tab Navigation ------------------------------------------------------ */
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 28px;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: .88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.tab-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tab-btn.active {
+    background: var(--accent-blue);
+    color: white;
+    box-shadow: 0 2px 10px rgba(74,142,255,.3);
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* --- Cards --------------------------------------------------------------- */
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.card-header h2 { display: flex; align-items: center; gap: 10px; }
+.card-header h3 { display: flex; align-items: center; gap: 8px; }
+
+/* --- Grid Layouts -------------------------------------------------------- */
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+/* --- Stat Boxes ---------------------------------------------------------- */
+
+.stat-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px;
+    text-align: center;
+}
+
+.stat-box .label {
+    font-size: .78rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 6px;
+}
+
+.stat-box .value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.stat-box .sub {
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* --- Regime Badge -------------------------------------------------------- */
+
+.regime-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 30px;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+.regime-badge.regime-a {
+    background: rgba(34,197,94,.12);
+    border: 2px solid var(--regime-a);
+    color: var(--regime-a);
+}
+.regime-badge.regime-b {
+    background: rgba(245,158,11,.12);
+    border: 2px solid var(--regime-b);
+    color: var(--regime-b);
+}
+.regime-badge.regime-c {
+    background: rgba(239,68,68,.12);
+    border: 2px solid var(--regime-c);
+    color: var(--regime-c);
+}
+
+.regime-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+.regime-a .regime-dot { background: var(--regime-a); }
+.regime-b .regime-dot { background: var(--regime-b); }
+.regime-c .regime-dot { background: var(--regime-c); }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .4; }
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 12px 14px;
+    color: var(--text-secondary);
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+}
+
+.data-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--bg-hover); }
+
+.data-table .number { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table .mono { font-family: 'JetBrains Mono', monospace; font-size: .82rem; }
+
+/* --- Allocation Bar ------------------------------------------------------ */
+
+.alloc-bar-container { margin: 20px 0; }
+
+.alloc-bar {
+    display: flex;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+
+.alloc-bar .segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    font-weight: 600;
+    color: white;
+    transition: width .5s ease;
+    min-width: 30px;
+}
+
+.alloc-bar .equity { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); }
+.alloc-bar .reserve { background: linear-gradient(135deg, var(--accent-amber), #d97706); }
+
+.alloc-legend {
+    display: flex;
+    gap: 24px;
+    margin-top: 10px;
+    font-size: .82rem;
+}
+
+.alloc-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+}
+
+.alloc-legend .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.alloc-legend .dot.eq { background: var(--accent-blue); }
+.alloc-legend .dot.res { background: var(--accent-amber); }
+
+/* --- Triggers List ------------------------------------------------------- */
+
+.trigger-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.trigger-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: .85rem;
+    border-left: 3px solid var(--accent-blue);
+}
+
+.trigger-list li.warning { border-left-color: var(--accent-amber); }
+.trigger-list li.danger  { border-left-color: var(--accent-red); }
+.trigger-list li.ok      { border-left-color: var(--accent-green); }
+
+/* --- Charts (Canvas) ----------------------------------------------------- */
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    margin-top: 10px;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* --- Forms & Inputs ------------------------------------------------------ */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.form-group input, .form-group select {
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: .92rem;
+    outline: none;
+    transition: var(--transition);
+}
+
+.form-group input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(74,142,255,.15);
+}
+
+.btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary {
+    background: var(--accent-blue);
+    color: white;
+}
+.btn-primary:hover {
+    background: #3b7bef;
+    box-shadow: 0 2px 12px rgba(74,142,255,.3);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+.btn-outline:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* --- Progress Bar -------------------------------------------------------- */
+
+.progress-track {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .8s ease;
+}
+
+.progress-fill.green { background: var(--accent-green); }
+.progress-fill.amber { background: var(--accent-amber); }
+.progress-fill.red   { background: var(--accent-red); }
+
+/* --- Loading Spinner ----------------------------------------------------- */
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px;
+    color: var(--text-secondary);
+    font-size: .92rem;
+}
+
+/* --- Description Blocks -------------------------------------------------- */
+
+.description-block {
+    background: var(--bg-secondary);
+    border-left: 3px solid var(--accent-blue);
+    padding: 14px 18px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: .88rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin: 14px 0;
+}
+
+/* --- Tooltip ------------------------------------------------------------- */
+
+.info-tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    font-size: .7rem;
+    font-weight: 700;
+    cursor: help;
+    position: relative;
+}
+
+/* --- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 1024px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+    .app-container { padding: 14px; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .tabs { flex-direction: column; }
+    header { flex-direction: column; align-items: flex-start; }
+    .stat-box .value { font-size: 1.3rem; }
+}
