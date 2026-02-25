@@ -1,0 +1,176 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj
+6 0 obj << /Length 4648 >> stream
+BT
+/Helvetica-Bold 16 Tf
+1 0 0 1 54 725.00 Tm
+(Global Portfolio One \(GPO\) ? Codebase Summary) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 712.00 Tm
+() Tj
+/Helvetica 11 Tf
+1 0 0 1 54 699.00 Tm
+() Tj
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 686.00 Tm
+(Purpose) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 673.00 Tm
+(GPO is a Flask web app that replicates a regime-aware investment process \(?Welt AG?\). It) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 660.00 Tm
+(combines market stress detection, allocation logic, and a dashboard UI to show portfolio) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 647.00 Tm
+(targets in real time.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 634.00 Tm
+() Tj
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 621.00 Tm
+(Runtime Architecture) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 608.00 Tm
+(? Backend: `app.py` exposes HTML and JSON APIs.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 595.00 Tm
+(? Domain engine \(`engine/`\):) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 582.00 Tm
+(  - `regime.py`: classifies market state A/B/C using drawdown, credit spread, and VIX.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 569.00 Tm
+(  - `allocator.py`: translates regime + portfolio value into position-level targets for) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 556.00 Tm
+(6-ETF and simplified 3-ETF models.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 543.00 Tm
+(  - `market_data.py`: fetches price/VIX/spread data with cache and synthetic fallback.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 530.00 Tm
+(  - `recovery.py`: computes C?B and B?A recovery thresholds from trough prices.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 517.00 Tm
+(  - `config.py`: central constants \(weights, ETF metadata, thresholds, symbols\).) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 504.00 Tm
+(? Frontend: `templates/index.html` + `static/js/app.js` + `static/css/style.css` render) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 491.00 Tm
+(dashboard cards, charts, simulator, and allocation tables.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 478.00 Tm
+() Tj
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 465.00 Tm
+(Core Business Logic) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 452.00 Tm
+(1. Market data is loaded \(`/api/dashboard`\) and drawdown is computed vs running ATH.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 439.00 Tm
+(2. Regime detection rules:) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 426.00 Tm
+(   - A \(Normal\): default, 80/20 equity/reserve.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 413.00 Tm
+(   - B \(Equity Scarcity\): drawdown ? -20% with stress confirmation.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 400.00 Tm
+(   - C \(Escalation\): drawdown ? -40% plus extreme/confirmed stress.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 387.00 Tm
+(3. Allocation engine computes:) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 374.00 Tm
+(   - Absolute ETF target weights and EUR values.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 361.00 Tm
+(   - Rebalance trades from optional current holdings.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 348.00 Tm
+(   - Weighted TER estimate.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 335.00 Tm
+(   - Simplified 3-ETF targets scaled to regime.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 322.00 Tm
+(4. Recovery module returns price checkpoints and progress percentages for de-risking path) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 309.00 Tm
+(back to A.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 296.00 Tm
+() Tj
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 283.00 Tm
+(APIs) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 270.00 Tm
+(? `GET /` dashboard page.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 257.00 Tm
+(? `GET /api/dashboard` market snapshot + regime + recovery levels.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 244.00 Tm
+(? `POST /api/allocate` live-regime allocation for submitted portfolio value/holdings.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 231.00 Tm
+(? `GET /api/reference` static ETF and weight tables.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 218.00 Tm
+(? `POST /api/simulate` hypothetical-regime allocation without live triggers.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 205.00 Tm
+() Tj
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 192.00 Tm
+(Data & Reliability Characteristics) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 179.00 Tm
+(? Uses `yfinance` for market prices/VIX and FRED for BBB OAS \(if key exists\).) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 166.00 Tm
+(? 30-minute in-memory cache reduces repeated remote calls.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 153.00 Tm
+(? If live feeds fail and `GPO_DEMO=1`, synthetic data keeps UI/API functional.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 140.00 Tm
+(? Unit tests in `tests/test_engine.py` validate regime, allocation, and recovery behavior.) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 127.00 Tm
+() Tj
+/Helvetica-Bold 12 Tf
+1 0 0 1 54 114.00 Tm
+(Operational Notes) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 101.00 Tm
+(? Start: `uv run python app.py`) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 88.00 Tm
+(? Test: `uv run pytest tests/ -v`) Tj
+/Helvetica 11 Tf
+1 0 0 1 54 75.00 Tm
+(? Deploy: `uv run gunicorn app:app --bind 0.0.0.0:8000 --workers 2`) Tj
+ET
+endstream endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000321 00000 n 
+0000000396 00000 n 
+trailer << /Size 7 /Root 1 0 R >>
+startxref
+5096
+%%EOF
