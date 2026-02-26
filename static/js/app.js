@@ -67,6 +67,10 @@ function regimeClass(r) {
     return 'regime-' + (r || 'a').toLowerCase();
 }
 
+function formatComponentLabel(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 /* ---- Dashboard Tab ------------------------------------------------------ */
 
 async function loadDashboard() {
@@ -158,27 +162,39 @@ function renderDashboard() {
             <p class="description-block" style="text-align:left">${r.description}</p>
         </div>
 
-        <!-- Key Metrics -->
-        <div class="grid-4">
-            <div class="stat-box">
-                <div class="label">MSCI World Proxy</div>
-                <div class="value">${fmt(dd.current_price)}</div>
-                <div class="sub">ATH: ${fmt(dd.ath)} (${dd.ath_date || '—'})</div>
+        <!-- Stress Indicators -->
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    Stress Indicators
+                    <span
+                        class="info-tip"
+                        title="These indicators drive regime changes: drawdown measures market damage, VIX tracks volatility stress, and BBB credit spreads reflect funding stress."
+                        aria-label="Stress indicator explanation"
+                    >i</span>
+                </h3>
             </div>
-            <div class="stat-box">
-                <div class="label">Drawdown from ATH</div>
-                <div class="value" style="color:${dd.drawdown_pct < -20 ? 'var(--accent-red)' : dd.drawdown_pct < -10 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmtPct(dd.drawdown_pct)}</div>
-                <div class="sub">Trigger B: ≤ -20% / C: ≤ -40%</div>
-            </div>
-            <div class="stat-box">
-                <div class="label">VIX (Fear Index)</div>
-                <div class="value" style="color:${m.vix >= 30 ? 'var(--accent-red)' : m.vix >= 20 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmt(m.vix, 1)}</div>
-                <div class="sub">Stress threshold: ≥ 30</div>
-            </div>
-            <div class="stat-box">
-                <div class="label">Credit Spread (BBB OAS)</div>
-                <div class="value" style="color:${m.credit_spread >= 4.5 ? 'var(--accent-red)' : m.credit_spread >= 2.5 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmtPct(m.credit_spread)}</div>
-                <div class="sub">Elevated: ≥ 2.5% / Extreme: ≥ 4.5%</div>
+            <div class="grid-4">
+                <div class="stat-box">
+                    <div class="label">MSCI World Proxy</div>
+                    <div class="value">${fmt(dd.current_price)}</div>
+                    <div class="sub">ATH: ${fmt(dd.ath)} (${dd.ath_date || '—'})</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Drawdown from ATH</div>
+                    <div class="value" style="color:${dd.drawdown_pct < -20 ? 'var(--accent-red)' : dd.drawdown_pct < -10 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmtPct(dd.drawdown_pct)}</div>
+                    <div class="sub">Trigger B: ≤ -20% / C: ≤ -40%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">VIX (Fear Index)</div>
+                    <div class="value" style="color:${m.vix >= 30 ? 'var(--accent-red)' : m.vix >= 20 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmt(m.vix, 1)}</div>
+                    <div class="sub">Stress threshold: ≥ 30</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Credit Spread (BBB OAS)</div>
+                    <div class="value" style="color:${m.credit_spread >= 4.5 ? 'var(--accent-red)' : m.credit_spread >= 2.5 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmtPct(m.credit_spread)}</div>
+                    <div class="sub">Elevated: ≥ 2.5% / Extreme: ≥ 4.5%</div>
+                </div>
             </div>
         </div>
 
@@ -201,6 +217,17 @@ function renderDashboard() {
         <div class="card">
             <div class="card-header"><h3>Active Signals</h3></div>
             <ul class="trigger-list">${triggersHtml}</ul>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h3>Recovery Protocol Milestones</h3></div>
+            <table class="data-table">
+                <thead><tr><th>Transition</th><th>Trigger</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr><td>C → B</td><td>+50% from trough + spreads normalising</td><td>Rebuild reserve to 10%</td></tr>
+                    <tr><td>B → A</td><td>+25% beyond C→B target</td><td>Rebuild reserve to 20%</td></tr>
+                </tbody>
+            </table>
         </div>
 
         ${recoveryHtml}
@@ -548,22 +575,29 @@ async function loadReference() {
 }
 
 function renderReference(data) {
-    function etfRow(key, etf) {
+    function etfRow(entry) {
+        const { key, etf, category, categoryClass, gpoWeight } = entry;
         return `<tr>
-            <td>${key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
+            <td><span class="pill ${categoryClass}">${category}</span></td>
+            <td>${formatComponentLabel(key)}</td>
             <td>${etf.name}</td>
             <td class="mono">${etf.isin}</td>
             <td>${etf.index}</td>
             <td class="number">${(etf.ter * 100).toFixed(2)}%</td>
+            <td class="number">${(gpoWeight * 100).toFixed(2)}%</td>
         </tr>`;
     }
 
     const eqWeights = data.equity_weights;
     const eqTotal = Object.values(eqWeights).reduce((s, v) => s + v, 0);
+    const reserveWeights = data.reserve_weights || {};
+
+    const sortedEqWeights = Object.entries(eqWeights)
+        .sort((a, b) => b[1] - a[1]);
 
     let eqRows = '';
-    for (const [k, v] of Object.entries(eqWeights)) {
-        const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    for (const [k, v] of sortedEqWeights) {
+        const label = formatComponentLabel(k);
         eqRows += `<tr>
             <td>${label}</td>
             <td class="number">${(v * 100).toFixed(2)}%</td>
@@ -571,10 +605,25 @@ function renderReference(data) {
         </tr>`;
     }
 
-    let etfRows = '';
-    for (const [k, etf] of Object.entries(data.etfs)) {
-        etfRows += etfRow(k, etf);
-    }
+    const etfEntries = Object.entries(data.etfs).map(([key, etf]) => {
+        const isEquity = Object.prototype.hasOwnProperty.call(eqWeights, key);
+        const gpoWeight = isEquity ? eqWeights[key] : (reserveWeights[key] || 0);
+        return {
+            key,
+            etf,
+            category: isEquity ? 'Equity' : 'Reserve',
+            categoryClass: isEquity ? 'pill-equity' : 'pill-reserve',
+            sortGroup: isEquity ? 0 : 1,
+            gpoWeight,
+        };
+    });
+
+    etfEntries.sort((a, b) => {
+        if (a.sortGroup !== b.sortGroup) return a.sortGroup - b.sortGroup;
+        return b.gpoWeight - a.gpoWeight;
+    });
+
+    const etfRows = etfEntries.map(etfRow).join('');
 
     el('reference-content').innerHTML = `
         <div class="card">
@@ -588,7 +637,7 @@ function renderReference(data) {
         <div class="card">
             <div class="card-header"><h3>ETF Universe</h3></div>
             <table class="data-table">
-                <thead><tr><th>Component</th><th>ETF Name</th><th>ISIN</th><th>Index</th><th>TER</th></tr></thead>
+                <thead><tr><th>Type</th><th>Component</th><th>ETF Name</th><th>ISIN</th><th>Index</th><th>TER</th><th>GPO Weight</th></tr></thead>
                 <tbody>${etfRows}</tbody>
             </table>
         </div>
