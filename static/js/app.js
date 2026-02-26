@@ -7,6 +7,7 @@ const API = {
     allocate:   '/api/allocate',
     simulate:   '/api/simulate',
     reference:  '/api/reference',
+    weights:    '/api/weights',
 };
 
 let state = {
@@ -14,6 +15,14 @@ let state = {
     regime: null,
     recovery: null,
     allocation: null,
+    referenceData: null,
+    originalEquityWeights: null,
+    originalReserveWeights: null,
+    defaultEquityWeights: null,
+    defaultReserveWeights: null,
+    hasSavedDefaults: false,
+    customEquityWeights: null,
+    customReserveWeights: null,
 };
 
 let drawdownChart = null;
@@ -384,7 +393,7 @@ async function loadAllocation() {
         const resp = await fetch(API.allocate, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ portfolio_value: pv }),
+            body: JSON.stringify({ portfolio_value: pv, ...weightsPayload() }),
         });
         const data = await resp.json();
         if (data.error) throw new Error(data.error);
@@ -428,7 +437,15 @@ function renderAllocation() {
         </tr>`;
     }
 
+    const customNote = hasNonDefaultWeights()
+        ? `<div class="weights-status-bar ${hasCustomWeights() ? 'modified' : 'saved'}" style="margin-bottom:16px">
+            <span>Using ${hasCustomWeights() ? 'unsaved custom' : 'saved custom'} weights from Reference Tables.</span>
+            <button class="btn btn-sm btn-outline" onclick="document.querySelector('[data-tab=tab-reference]').click()">Edit Weights</button>
+          </div>`
+        : '';
+
     el('alloc-results').innerHTML = `
+        ${customNote}
         <div class="grid-3" style="margin-bottom:20px">
             <div class="stat-box">
                 <div class="label">Portfolio Value</div>
@@ -494,6 +511,7 @@ async function runSimulation() {
                 credit_spread: spread,
                 vix: vix,
                 portfolio_value: pv,
+                ...weightsPayload(),
             }),
         });
         const data = await resp.json();
@@ -555,91 +573,216 @@ function renderSimulation(data) {
 }
 
 
-/* ---- Reference Tab (loaded once) ---------------------------------------- */
+/* ---- Weight helpers ------------------------------------------------------ */
+
+function getActiveEquityWeights() {
+    return state.customEquityWeights || state.defaultEquityWeights;
+}
+
+function getActiveReserveWeights() {
+    return state.customReserveWeights || state.defaultReserveWeights;
+}
+
+function hasCustomWeights() {
+    return state.customEquityWeights !== null || state.customReserveWeights !== null;
+}
+
+function hasNonDefaultWeights() {
+    return hasCustomWeights() || state.hasSavedDefaults;
+}
+
+function weightsPayload() {
+    const eq = getActiveEquityWeights();
+    const res = getActiveReserveWeights();
+    const payload = {};
+    if (eq) payload.equity_weights = eq;
+    if (res) payload.reserve_weights = res;
+    return payload;
+}
+
+function labelFor(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ---- Reference Tab ------------------------------------------------------ */
 
 async function loadReference() {
     try {
         const resp = await fetch(API.reference);
         const data = await resp.json();
-        renderReference(data);
+        state.referenceData = data;
+        state.originalEquityWeights = { ...data.original_equity_weights };
+        state.originalReserveWeights = { ...data.original_reserve_weights };
+        state.defaultEquityWeights = { ...data.equity_weights };
+        state.defaultReserveWeights = { ...data.reserve_weights };
+        state.hasSavedDefaults = !!data.has_saved_defaults;
+        renderReference();
     } catch (err) {
         el('reference-content').innerHTML = `<p style="color:var(--accent-red)">Failed to load: ${err.message}</p>`;
     }
 }
 
-function renderReference(data) {
-    function etfRow(key, etf) {
-        return `<tr>
-            <td>${key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
-            <td>${etf.name}</td>
-            <td class="mono">${etf.isin}</td>
-            <td>${etf.index}</td>
-            <td class="number">${(etf.ter * 100).toFixed(2)}%</td>
-        </tr>`;
-    }
+function renderReference() {
+    const data = state.referenceData;
+    if (!data) return;
 
-    const eqWeights = data.equity_weights;
+    const eqWeights = getActiveEquityWeights();
+    const resWeights = getActiveReserveWeights();
     const eqTotal = Object.values(eqWeights).reduce((s, v) => s + v, 0);
+    const resTotal = Object.values(resWeights).reduce((s, v) => s + v, 0);
+
+    const eqModified = state.customEquityWeights !== null;
+    const resModified = state.customReserveWeights !== null;
 
     const sortedEqEntries = Object.entries(eqWeights).sort((a, b) => b[1] - a[1]);
+
     let eqRows = '';
     for (const [k, v] of sortedEqEntries) {
-        const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        eqRows += `<tr>
-            <td>${label}</td>
-            <td class="number">${(v * 100).toFixed(2)}%</td>
-            <td class="number">${((v / eqTotal) * 100).toFixed(2)}%</td>
+        const pctVal = (v * 100).toFixed(2);
+        const normVal = eqTotal > 0 ? ((v / eqTotal) * 100).toFixed(2) : '0.00';
+        const isChanged = state.customEquityWeights && state.defaultEquityWeights[k] !== undefined
+            && Math.abs(v - state.defaultEquityWeights[k]) > 0.00001;
+        eqRows += `<tr class="${isChanged ? 'weight-changed' : ''}">
+            <td>${labelFor(k)}</td>
+            <td class="number weight-cell">
+                <div class="weight-input-wrap">
+                    <input type="number" class="weight-input eq-weight-input" data-key="${k}"
+                           value="${pctVal}" min="0" max="100" step="0.01">
+                    <span class="weight-unit">%</span>
+                </div>
+            </td>
+            <td class="number norm-value">${normVal}%</td>
         </tr>`;
     }
 
-    const resWeights = data.reserve_weights;
+    const eqTotalPct = (eqTotal * 100).toFixed(2);
+    const eqTotalOk = Math.abs(eqTotal * 100 - 88.16) < 1.0;
+    eqRows += `<tr class="total-row">
+        <td><strong>Total</strong></td>
+        <td class="number"><strong class="${eqTotalOk ? '' : 'total-warning'}">${eqTotalPct}%</strong></td>
+        <td class="number"><strong>100.00%</strong></td>
+    </tr>`;
+
+    const sortedResEntries = Object.entries(resWeights).sort((a, b) => b[1] - a[1]);
+    let resRows = '';
+    for (const [k, v] of sortedResEntries) {
+        const pctVal = (v * 100).toFixed(2);
+        const isChanged = state.customReserveWeights && state.defaultReserveWeights[k] !== undefined
+            && Math.abs(v - state.defaultReserveWeights[k]) > 0.00001;
+        resRows += `<tr class="${isChanged ? 'weight-changed' : ''}">
+            <td>${labelFor(k)}</td>
+            <td class="number weight-cell">
+                <div class="weight-input-wrap">
+                    <input type="number" class="weight-input res-weight-input" data-key="${k}"
+                           value="${pctVal}" min="0" max="100" step="0.01">
+                    <span class="weight-unit">%</span>
+                </div>
+            </td>
+        </tr>`;
+    }
+
+    const resTotalPct = (resTotal * 100).toFixed(2);
+    const resTotalOk = Math.abs(resTotal - 1.0) < 0.001;
+    resRows += `<tr class="total-row">
+        <td><strong>Total</strong></td>
+        <td class="number"><strong class="${resTotalOk ? '' : 'total-warning'}">${resTotalPct}%</strong></td>
+    </tr>`;
+
     const equityKeys = Object.keys(eqWeights).filter(k => data.etfs[k]);
     const reserveKeys = Object.keys(resWeights).filter(k => data.etfs[k]);
-
     const sortedEquityETFs = equityKeys.sort((a, b) => eqWeights[b] - eqWeights[a]);
     const sortedReserveETFs = reserveKeys.sort((a, b) => resWeights[b] - resWeights[a]);
 
     let etfRows = '';
-    etfRows += `<tr class="group-header equity-group"><td colspan="6">Equity Sleeve (Welt AG)</td></tr>`;
+    etfRows += `<tr class="group-header equity-group"><td colspan="5">Equity Sleeve (Welt AG)</td></tr>`;
     for (const k of sortedEquityETFs) {
         const etf = data.etfs[k];
         etfRows += `<tr class="equity-row">
-            <td>${k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
+            <td>${labelFor(k)}</td>
             <td>${etf.name}</td>
             <td class="mono">${etf.isin}</td>
             <td>${etf.index}</td>
-            <td class="number">${(eqWeights[k] * 100).toFixed(2)}%</td>
             <td class="number">${(etf.ter * 100).toFixed(2)}%</td>
         </tr>`;
     }
 
-    etfRows += `<tr class="group-header reserve-group"><td colspan="6">Investment Reserve</td></tr>`;
+    etfRows += `<tr class="group-header reserve-group"><td colspan="5">Investment Reserve</td></tr>`;
     for (const k of sortedReserveETFs) {
         const etf = data.etfs[k];
-        const gpoWeight = resWeights[k] * 0.20;
         etfRows += `<tr class="reserve-row">
-            <td>${k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
+            <td>${labelFor(k)}</td>
             <td>${etf.name}</td>
             <td class="mono">${etf.isin}</td>
             <td>${etf.index}</td>
-            <td class="number">${(gpoWeight * 100).toFixed(2)}%</td>
             <td class="number">${(etf.ter * 100).toFixed(2)}%</td>
         </tr>`;
+    }
+
+    let statusBar = '';
+    if (hasCustomWeights()) {
+        statusBar = `<div class="weights-status-bar modified">
+            <span>Unsaved changes. These custom weights will be used in Portfolio Allocator and Regime Simulator.</span>
+            <div class="status-bar-actions">
+                <button class="btn btn-sm btn-save-default" id="btn-save-default">Save as Default</button>
+                <button class="btn btn-sm btn-reset-all" id="btn-reset-all">Discard Changes</button>
+            </div>
+        </div>`;
+    } else if (state.hasSavedDefaults) {
+        statusBar = `<div class="weights-status-bar saved">
+            <span>Using saved custom defaults. Original config values can be restored.</span>
+            <div class="status-bar-actions">
+                <button class="btn btn-sm btn-outline" id="btn-restore-original">Restore Original Defaults</button>
+            </div>
+        </div>`;
+    } else {
+        statusBar = `<div class="weights-status-bar default">
+            <span>Weights are at their original default values. Edit below to customize allocations.</span>
+        </div>`;
     }
 
     el('reference-content').innerHTML = `
-        <div class="card">
-            <div class="card-header"><h3>Equal-Value-Index Regional Weights</h3></div>
-            <table class="data-table">
-                <thead><tr><th>Region</th><th>GPO Weight</th><th>Normalized (Equity Only)</th></tr></thead>
-                <tbody>${eqRows}</tbody>
-            </table>
+        ${statusBar}
+
+        <div class="grid-2-ref">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Equity Regional Weights</h3>
+                    <div class="card-actions">
+                        ${eqModified ? '<button class="btn btn-sm btn-outline btn-reset-eq">Reset</button>' : ''}
+                    </div>
+                </div>
+                <p class="description-block" style="margin-top:0;margin-bottom:14px;">
+                    Regional allocation of the equity (Welt AG) sleeve. Weights are automatically
+                    normalised for downstream calculations.
+                </p>
+                <table class="data-table editable-weights-table">
+                    <thead><tr><th>Region</th><th>Weight</th><th>Normalised</th></tr></thead>
+                    <tbody>${eqRows}</tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Reserve Composition</h3>
+                    <div class="card-actions">
+                        ${resModified ? '<button class="btn btn-sm btn-outline btn-reset-res">Reset</button>' : ''}
+                    </div>
+                </div>
+                <p class="description-block" style="margin-top:0;margin-bottom:14px;">
+                    Allocation within the investment reserve sleeve.
+                    Weights should sum to 100%.
+                </p>
+                <table class="data-table editable-weights-table">
+                    <thead><tr><th>Component</th><th>Weight</th></tr></thead>
+                    <tbody>${resRows}</tbody>
+                </table>
+            </div>
         </div>
 
         <div class="card">
             <div class="card-header"><h3>ETF Universe</h3></div>
             <table class="data-table">
-                <thead><tr><th>Component</th><th>ETF Name</th><th>ISIN</th><th>Index</th><th>GPO Weight</th><th>TER</th></tr></thead>
+                <thead><tr><th>Component</th><th>ETF Name</th><th>ISIN</th><th>Index</th><th>TER</th></tr></thead>
                 <tbody>${etfRows}</tbody>
             </table>
         </div>
@@ -651,8 +794,8 @@ function renderReference(data) {
                     <tr><th>Metric</th><th>Regime A (Normal)</th><th>Regime B (Scarcity)</th><th>Regime C (Escalation)</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>Drawdown</td><td>0% to -19%</td><td>-20% to -39%</td><td>≥ -40%</td></tr>
-                    <tr><td>Credit Spreads</td><td>Normal</td><td>Elevated (≥2.5%)</td><td>Extreme (≥4.5%)</td></tr>
+                    <tr><td>Drawdown</td><td>0% to -19%</td><td>-20% to -39%</td><td>&ge; -40%</td></tr>
+                    <tr><td>Credit Spreads</td><td>Normal</td><td>Elevated (&ge;2.5%)</td><td>Extreme (&ge;4.5%)</td></tr>
                     <tr><td>Equity Allocation</td><td style="color:var(--accent-green)">80%</td><td style="color:var(--accent-amber)">90%</td><td style="color:var(--accent-red)">100%</td></tr>
                     <tr><td>Reserve Allocation</td><td>20%</td><td>10%</td><td>0%</td></tr>
                     <tr><td>Action</td><td>Rebalance quarterly</td><td>Deploy 50% reserve</td><td>Deploy all reserve</td></tr>
@@ -665,12 +808,134 @@ function renderReference(data) {
             <table class="data-table">
                 <thead><tr><th>Transition</th><th>Trigger</th><th>Action</th></tr></thead>
                 <tbody>
-                    <tr><td>C → B</td><td>+50% from trough + spreads normalising</td><td>Rebuild reserve to 10%</td></tr>
-                    <tr><td>B → A</td><td>+25% beyond C→B target</td><td>Rebuild reserve to 20%</td></tr>
+                    <tr><td>C &rarr; B</td><td>+50% from trough + spreads normalising</td><td>Rebuild reserve to 10%</td></tr>
+                    <tr><td>B &rarr; A</td><td>+25% beyond C&rarr;B target</td><td>Rebuild reserve to 20%</td></tr>
                 </tbody>
             </table>
         </div>
     `;
+
+    bindWeightInputs();
+}
+
+function bindWeightInputs() {
+    document.querySelectorAll('.eq-weight-input').forEach(input => {
+        input.addEventListener('change', onEquityWeightChange);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); } });
+    });
+    document.querySelectorAll('.res-weight-input').forEach(input => {
+        input.addEventListener('change', onReserveWeightChange);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); } });
+    });
+
+    const resetAll = document.getElementById('btn-reset-all');
+    if (resetAll) resetAll.addEventListener('click', resetAllWeights);
+
+    const saveDefault = document.getElementById('btn-save-default');
+    if (saveDefault) saveDefault.addEventListener('click', saveAsDefault);
+
+    const restoreOriginal = document.getElementById('btn-restore-original');
+    if (restoreOriginal) restoreOriginal.addEventListener('click', restoreOriginalDefaults);
+
+    const resetEq = document.querySelector('.btn-reset-eq');
+    if (resetEq) resetEq.addEventListener('click', resetEquityWeights);
+
+    const resetRes = document.querySelector('.btn-reset-res');
+    if (resetRes) resetRes.addEventListener('click', resetReserveWeights);
+}
+
+function onEquityWeightChange(e) {
+    const key = e.target.dataset.key;
+    const val = parseFloat(e.target.value);
+    if (isNaN(val) || val < 0) {
+        e.target.value = ((getActiveEquityWeights()[key] || 0) * 100).toFixed(2);
+        return;
+    }
+
+    if (!state.customEquityWeights) {
+        state.customEquityWeights = { ...state.defaultEquityWeights };
+    }
+    state.customEquityWeights[key] = val / 100;
+    renderReference();
+}
+
+function onReserveWeightChange(e) {
+    const key = e.target.dataset.key;
+    const val = parseFloat(e.target.value);
+    if (isNaN(val) || val < 0) {
+        e.target.value = ((getActiveReserveWeights()[key] || 0) * 100).toFixed(2);
+        return;
+    }
+
+    if (!state.customReserveWeights) {
+        state.customReserveWeights = { ...state.defaultReserveWeights };
+    }
+    state.customReserveWeights[key] = val / 100;
+    renderReference();
+}
+
+function resetEquityWeights() {
+    state.customEquityWeights = null;
+    renderReference();
+}
+
+function resetReserveWeights() {
+    state.customReserveWeights = null;
+    renderReference();
+}
+
+function resetAllWeights() {
+    state.customEquityWeights = null;
+    state.customReserveWeights = null;
+    renderReference();
+}
+
+async function saveAsDefault() {
+    const eq = getActiveEquityWeights();
+    const res = getActiveReserveWeights();
+    const btn = document.getElementById('btn-save-default');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+    try {
+        const resp = await fetch(API.weights, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ equity_weights: eq, reserve_weights: res }),
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        state.defaultEquityWeights = { ...eq };
+        state.defaultReserveWeights = { ...res };
+        state.customEquityWeights = null;
+        state.customReserveWeights = null;
+        state.hasSavedDefaults = true;
+        renderReference();
+    } catch (err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save as Default'; }
+        alert('Failed to save weights: ' + err.message);
+    }
+}
+
+async function restoreOriginalDefaults() {
+    if (!confirm('Restore all weights to the original configuration defaults? This will delete your saved custom defaults.')) {
+        return;
+    }
+
+    try {
+        const resp = await fetch(API.weights, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        state.defaultEquityWeights = { ...state.originalEquityWeights };
+        state.defaultReserveWeights = { ...state.originalReserveWeights };
+        state.customEquityWeights = null;
+        state.customReserveWeights = null;
+        state.hasSavedDefaults = false;
+        renderReference();
+    } catch (err) {
+        alert('Failed to restore defaults: ' + err.message);
+    }
 }
 
 

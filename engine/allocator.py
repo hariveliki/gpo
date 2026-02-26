@@ -50,6 +50,8 @@ def compute_allocation(
     portfolio_value: float,
     regime: RegimeResult,
     current_holdings: Optional[dict[str, float]] = None,
+    equity_weights: Optional[dict[str, float]] = None,
+    reserve_weights: Optional[dict[str, float]] = None,
 ) -> AllocationResult:
     """
     Compute the target allocation for the full 6-ETF model and
@@ -64,22 +66,30 @@ def compute_allocation(
     current_holdings : dict | None
         Mapping of region key → current value. Used to compute
         rebalancing trades.
+    equity_weights : dict | None
+        Custom equity region weights. Falls back to config defaults.
+    reserve_weights : dict | None
+        Custom reserve component weights. Falls back to config defaults.
     """
     if current_holdings is None:
         current_holdings = {}
 
+    ew = equity_weights if equity_weights is not None else EQUITY_WEIGHTS
+    rw = reserve_weights if reserve_weights is not None else RESERVE_WEIGHTS
+
     equity_value = portfolio_value * regime.equity_pct
     reserve_value = portfolio_value * regime.reserve_pct
 
-    # Normalize equity weights to sum to 1.0
-    eq_sum = sum(EQUITY_WEIGHTS.values())
-    normed_eq = {k: v / eq_sum for k, v in EQUITY_WEIGHTS.items()}
+    eq_sum = sum(ew.values())
+    normed_eq = {k: v / eq_sum for k, v in ew.items()} if eq_sum > 0 else ew
 
     positions: list[Position] = []
     total_ter_weight = 0.0
 
     for region, weight in normed_eq.items():
-        etf = ETFS[region]
+        etf = ETFS.get(region)
+        if etf is None:
+            continue
         abs_weight = weight * regime.equity_pct
         target_val = portfolio_value * abs_weight
         current_val = current_holdings.get(region, 0.0)
@@ -98,8 +108,7 @@ def compute_allocation(
         ))
         total_ter_weight += abs_weight * etf["ter"]
 
-    # Reserve positions
-    for component, weight in RESERVE_WEIGHTS.items():
+    for component, weight in rw.items():
         if component == "cash":
             positions.append(Position(
                 region="cash",
@@ -135,10 +144,8 @@ def compute_allocation(
         ))
         total_ter_weight += abs_weight * etf["ter"]
 
-    # Simplified 3-ETF model
     simple_positions: list[Position] = []
     for key, info in SIMPLE_ETFS.items():
-        # Scale equity portion to regime
         if key == "cash":
             w = regime.reserve_pct
         elif key == "small_caps":
