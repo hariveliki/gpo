@@ -113,7 +113,7 @@ function renderDashboard() {
     if (rec && rec.trough_price) {
         recoveryHtml = `
         <div class="card">
-            <div class="card-header"><h3>Recovery Protocol</h3></div>
+            <div class="card-header"><h3>Recovery Progress</h3></div>
             <div class="grid-3">
                 <div class="stat-box">
                     <div class="label">Trough Price</div>
@@ -158,25 +158,29 @@ function renderDashboard() {
             <p class="description-block" style="text-align:left">${r.description}</p>
         </div>
 
-        <!-- Key Metrics -->
+        <!-- Stress Indicators -->
+        <div class="section-heading">
+            <h3>Stress Indicators</h3>
+            <p class="section-desc">Key market metrics used to detect regime changes. Hover over each indicator for a detailed explanation.</p>
+        </div>
         <div class="grid-4">
             <div class="stat-box">
-                <div class="label">MSCI World Proxy</div>
+                <div class="label has-tooltip" data-tooltip="The MSCI World ETF (URTH) serves as the reference index proxy. Its current price is compared to the all-time high to calculate the drawdown percentage used for regime detection.">MSCI World Proxy <span class="info-icon">ⓘ</span></div>
                 <div class="value">${fmt(dd.current_price)}</div>
                 <div class="sub">ATH: ${fmt(dd.ath)} (${dd.ath_date || '—'})</div>
             </div>
             <div class="stat-box">
-                <div class="label">Drawdown from ATH</div>
+                <div class="label has-tooltip" data-tooltip="Percentage decline from the all-time high. Primary trigger for regime shifts: ≤ −20% activates Regime B (Equity Scarcity); ≤ −40% activates Regime C (Escalation). Must be confirmed by elevated credit spreads or VIX.">Drawdown from ATH <span class="info-icon">ⓘ</span></div>
                 <div class="value" style="color:${dd.drawdown_pct < -20 ? 'var(--accent-red)' : dd.drawdown_pct < -10 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmtPct(dd.drawdown_pct)}</div>
                 <div class="sub">Trigger B: ≤ -20% / C: ≤ -40%</div>
             </div>
             <div class="stat-box">
-                <div class="label">VIX (Fear Index)</div>
+                <div class="label has-tooltip" data-tooltip="The CBOE Volatility Index measures expected 30-day S&P 500 volatility. A VIX ≥ 30 acts as a stress confirmation signal alongside drawdown depth to trigger regime changes.">VIX (Fear Index) <span class="info-icon">ⓘ</span></div>
                 <div class="value" style="color:${m.vix >= 30 ? 'var(--accent-red)' : m.vix >= 20 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmt(m.vix, 1)}</div>
                 <div class="sub">Stress threshold: ≥ 30</div>
             </div>
             <div class="stat-box">
-                <div class="label">Credit Spread (BBB OAS)</div>
+                <div class="label has-tooltip" data-tooltip="ICE BofA BBB US Corporate Option-Adjusted Spread – measures the credit risk premium on investment-grade bonds. ≥ 2.5% signals elevated stress; ≥ 4.5% signals extreme stress. Used alongside drawdown to confirm regime shifts.">Credit Spread (BBB OAS) <span class="info-icon">ⓘ</span></div>
                 <div class="value" style="color:${m.credit_spread >= 4.5 ? 'var(--accent-red)' : m.credit_spread >= 2.5 ? 'var(--accent-amber)' : 'var(--accent-green)'}">${fmtPct(m.credit_spread)}</div>
                 <div class="sub">Elevated: ≥ 2.5% / Extreme: ≥ 4.5%</div>
             </div>
@@ -204,6 +208,22 @@ function renderDashboard() {
         </div>
 
         ${recoveryHtml}
+
+        <!-- Recovery Protocol Reference -->
+        <div class="card">
+            <div class="card-header"><h3>Recovery Protocol</h3></div>
+            <p class="description-block" style="margin-top:0">
+                When the market recovers from a crisis regime, reserves are gradually rebuilt
+                according to the following protocol.
+            </p>
+            <table class="data-table">
+                <thead><tr><th>Transition</th><th>Trigger</th><th>Action</th></tr></thead>
+                <tbody>
+                    <tr><td>C → B</td><td>+50% rally from trough + credit spreads normalising</td><td>Rebuild reserve to 10%</td></tr>
+                    <tr><td>B → A</td><td>Additional +25% beyond the C→B target price</td><td>Rebuild reserve to 20%</td></tr>
+                </tbody>
+            </table>
+        </div>
 
         <!-- Charts -->
         <div class="grid-2">
@@ -561,8 +581,9 @@ function renderReference(data) {
     const eqWeights = data.equity_weights;
     const eqTotal = Object.values(eqWeights).reduce((s, v) => s + v, 0);
 
+    const sortedEqEntries = Object.entries(eqWeights).sort((a, b) => b[1] - a[1]);
     let eqRows = '';
-    for (const [k, v] of Object.entries(eqWeights)) {
+    for (const [k, v] of sortedEqEntries) {
         const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         eqRows += `<tr>
             <td>${label}</td>
@@ -571,9 +592,39 @@ function renderReference(data) {
         </tr>`;
     }
 
+    const resWeights = data.reserve_weights;
+    const equityKeys = Object.keys(eqWeights).filter(k => data.etfs[k]);
+    const reserveKeys = Object.keys(resWeights).filter(k => data.etfs[k]);
+
+    const sortedEquityETFs = equityKeys.sort((a, b) => eqWeights[b] - eqWeights[a]);
+    const sortedReserveETFs = reserveKeys.sort((a, b) => resWeights[b] - resWeights[a]);
+
     let etfRows = '';
-    for (const [k, etf] of Object.entries(data.etfs)) {
-        etfRows += etfRow(k, etf);
+    etfRows += `<tr class="group-header equity-group"><td colspan="6">Equity Sleeve (Welt AG)</td></tr>`;
+    for (const k of sortedEquityETFs) {
+        const etf = data.etfs[k];
+        etfRows += `<tr class="equity-row">
+            <td>${k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
+            <td>${etf.name}</td>
+            <td class="mono">${etf.isin}</td>
+            <td>${etf.index}</td>
+            <td class="number">${(eqWeights[k] * 100).toFixed(2)}%</td>
+            <td class="number">${(etf.ter * 100).toFixed(2)}%</td>
+        </tr>`;
+    }
+
+    etfRows += `<tr class="group-header reserve-group"><td colspan="6">Investment Reserve</td></tr>`;
+    for (const k of sortedReserveETFs) {
+        const etf = data.etfs[k];
+        const gpoWeight = resWeights[k] * 0.20;
+        etfRows += `<tr class="reserve-row">
+            <td>${k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
+            <td>${etf.name}</td>
+            <td class="mono">${etf.isin}</td>
+            <td>${etf.index}</td>
+            <td class="number">${(gpoWeight * 100).toFixed(2)}%</td>
+            <td class="number">${(etf.ter * 100).toFixed(2)}%</td>
+        </tr>`;
     }
 
     el('reference-content').innerHTML = `
@@ -588,7 +639,7 @@ function renderReference(data) {
         <div class="card">
             <div class="card-header"><h3>ETF Universe</h3></div>
             <table class="data-table">
-                <thead><tr><th>Component</th><th>ETF Name</th><th>ISIN</th><th>Index</th><th>TER</th></tr></thead>
+                <thead><tr><th>Component</th><th>ETF Name</th><th>ISIN</th><th>Index</th><th>GPO Weight</th><th>TER</th></tr></thead>
                 <tbody>${etfRows}</tbody>
             </table>
         </div>
