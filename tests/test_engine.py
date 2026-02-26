@@ -252,3 +252,45 @@ class TestFlaskAPI:
         assert resp.status_code == 200
         data = resp.get_json()
         assert "allocation" in data
+
+    def test_save_weights_as_default(self, client):
+        from app import WEIGHTS_FILE
+        try:
+            resp = client.post("/api/weights", json={
+                "equity_weights": {"north_america": 0.60, "europe": 0.40},
+                "reserve_weights": {"inflation_linked": 0.50, "money_market": 0.30, "gold": 0.10, "cash": 0.10},
+            })
+            assert resp.status_code == 200
+            assert resp.get_json()["ok"] is True
+
+            ref = client.get("/api/reference").get_json()
+            assert ref["has_saved_defaults"] is True
+            assert ref["equity_weights"]["north_america"] == 0.60
+            assert ref["original_equity_weights"]["north_america"] != 0.60
+        finally:
+            if WEIGHTS_FILE.exists():
+                WEIGHTS_FILE.unlink()
+
+    def test_delete_weights_restores_originals(self, client):
+        from app import WEIGHTS_FILE
+        try:
+            client.post("/api/weights", json={
+                "equity_weights": {"north_america": 0.99, "europe": 0.01},
+            })
+            resp = client.delete("/api/weights")
+            assert resp.status_code == 200
+            assert resp.get_json()["ok"] is True
+
+            ref = client.get("/api/reference").get_json()
+            assert ref["has_saved_defaults"] is False
+            assert ref["equity_weights"]["north_america"] != 0.99
+        finally:
+            if WEIGHTS_FILE.exists():
+                WEIGHTS_FILE.unlink()
+
+    def test_reference_includes_original_weights(self, client):
+        resp = client.get("/api/reference")
+        data = resp.get_json()
+        assert "original_equity_weights" in data
+        assert "original_reserve_weights" in data
+        assert data["original_equity_weights"] == data["equity_weights"]

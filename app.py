@@ -10,7 +10,9 @@ A Flask application that implements the GPO strategy:
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
@@ -28,6 +30,28 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+WEIGHTS_FILE = Path(__file__).parent / "weights.json"
+
+
+def _load_saved_weights() -> dict | None:
+    """Load user-saved weight overrides from disk, or None if not present."""
+    if not WEIGHTS_FILE.exists():
+        return None
+    try:
+        return json.loads(WEIGHTS_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _get_effective_weights() -> tuple[dict, dict]:
+    """Return (equity_weights, reserve_weights) respecting saved overrides."""
+    saved = _load_saved_weights()
+    if saved:
+        eq = saved.get("equity_weights", EQUITY_WEIGHTS)
+        res = saved.get("reserve_weights", RESERVE_WEIGHTS)
+        return eq, res
+    return dict(EQUITY_WEIGHTS), dict(RESERVE_WEIGHTS)
 
 
 # --------------------------------------------------------------------------- #
@@ -126,13 +150,62 @@ def api_allocate():
 # --------------------------------------------------------------------------- #
 @app.route("/api/reference")
 def api_reference():
-    """Return the static configuration tables."""
+    """Return configuration tables, including any saved weight overrides."""
+    eff_eq, eff_res = _get_effective_weights()
+    has_saved = _load_saved_weights() is not None
     return jsonify({
-        "equity_weights": EQUITY_WEIGHTS,
-        "reserve_weights": RESERVE_WEIGHTS,
+        "equity_weights": eff_eq,
+        "reserve_weights": eff_res,
+        "original_equity_weights": EQUITY_WEIGHTS,
+        "original_reserve_weights": RESERVE_WEIGHTS,
+        "has_saved_defaults": has_saved,
         "etfs": ETFS,
         "simple_etfs": SIMPLE_ETFS,
     })
+
+
+# --------------------------------------------------------------------------- #
+# API: Save / Restore Default Weights
+# --------------------------------------------------------------------------- #
+@app.route("/api/weights", methods=["POST"])
+def api_save_weights():
+    """
+    Persist custom weights as the new defaults.
+    JSON: { "equity_weights": {...}, "reserve_weights": {...} }
+    """
+    try:
+        body = request.get_json(force=True)
+        eq = body.get("equity_weights")
+        res = body.get("reserve_weights")
+
+        if not eq and not res:
+            return jsonify({"error": "Provide equity_weights and/or reserve_weights"}), 400
+
+        saved = _load_saved_weights() or {}
+        if eq:
+            saved["equity_weights"] = {k: float(v) for k, v in eq.items()}
+        if res:
+            saved["reserve_weights"] = {k: float(v) for k, v in res.items()}
+
+        WEIGHTS_FILE.write_text(json.dumps(saved, indent=2))
+        logger.info("Saved custom default weights to %s", WEIGHTS_FILE)
+        return jsonify({"ok": True})
+    except Exception as exc:
+        logger.exception("Save weights error")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/weights", methods=["DELETE"])
+def api_delete_weights():
+    """Remove saved weight overrides, restoring original config defaults."""
+    try:
+        if WEIGHTS_FILE.exists():
+            WEIGHTS_FILE.unlink()
+            logger.info("Deleted saved weights file %s", WEIGHTS_FILE)
+        return jsonify({"ok": True})
+    except Exception as exc:
+        logger.exception("Delete weights error")
+        return jsonify({"error": str(exc)}), 500
 
 
 # --------------------------------------------------------------------------- #

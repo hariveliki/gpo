@@ -7,6 +7,7 @@ const API = {
     allocate:   '/api/allocate',
     simulate:   '/api/simulate',
     reference:  '/api/reference',
+    weights:    '/api/weights',
 };
 
 let state = {
@@ -15,8 +16,11 @@ let state = {
     recovery: null,
     allocation: null,
     referenceData: null,
+    originalEquityWeights: null,
+    originalReserveWeights: null,
     defaultEquityWeights: null,
     defaultReserveWeights: null,
+    hasSavedDefaults: false,
     customEquityWeights: null,
     customReserveWeights: null,
 };
@@ -601,8 +605,11 @@ async function loadReference() {
         const resp = await fetch(API.reference);
         const data = await resp.json();
         state.referenceData = data;
+        state.originalEquityWeights = { ...data.original_equity_weights };
+        state.originalReserveWeights = { ...data.original_reserve_weights };
         state.defaultEquityWeights = { ...data.equity_weights };
         state.defaultReserveWeights = { ...data.reserve_weights };
+        state.hasSavedDefaults = !!data.has_saved_defaults;
         renderReference();
     } catch (err) {
         el('reference-content').innerHTML = `<p style="color:var(--accent-red)">Failed to load: ${err.message}</p>`;
@@ -705,17 +712,30 @@ function renderReference() {
         </tr>`;
     }
 
-    const customBadge = hasCustomWeights()
-        ? `<span class="custom-weights-badge">Custom weights active</span>`
-        : '';
+    let statusBar = '';
+    if (hasCustomWeights()) {
+        statusBar = `<div class="weights-status-bar modified">
+            <span>Unsaved changes. These custom weights will be used in Portfolio Allocator and Regime Simulator.</span>
+            <div class="status-bar-actions">
+                <button class="btn btn-sm btn-save-default" id="btn-save-default">Save as Default</button>
+                <button class="btn btn-sm btn-reset-all" id="btn-reset-all">Discard Changes</button>
+            </div>
+        </div>`;
+    } else if (state.hasSavedDefaults) {
+        statusBar = `<div class="weights-status-bar saved">
+            <span>Using saved custom defaults. Original config values can be restored.</span>
+            <div class="status-bar-actions">
+                <button class="btn btn-sm btn-outline" id="btn-restore-original">Restore Original Defaults</button>
+            </div>
+        </div>`;
+    } else {
+        statusBar = `<div class="weights-status-bar default">
+            <span>Weights are at their original default values. Edit below to customize allocations.</span>
+        </div>`;
+    }
 
     el('reference-content').innerHTML = `
-        ${customBadge ? `<div class="weights-status-bar modified">
-            <span>Custom weights are active and will be used in Portfolio Allocator and Regime Simulator.</span>
-            <button class="btn btn-sm btn-reset-all" id="btn-reset-all">Reset All to Defaults</button>
-        </div>` : `<div class="weights-status-bar default">
-            <span>Weights are at their default values. Edit below to customize allocations.</span>
-        </div>`}
+        ${statusBar}
 
         <div class="grid-2-ref">
             <div class="card">
@@ -805,6 +825,12 @@ function bindWeightInputs() {
     const resetAll = document.getElementById('btn-reset-all');
     if (resetAll) resetAll.addEventListener('click', resetAllWeights);
 
+    const saveDefault = document.getElementById('btn-save-default');
+    if (saveDefault) saveDefault.addEventListener('click', saveAsDefault);
+
+    const restoreOriginal = document.getElementById('btn-restore-original');
+    if (restoreOriginal) restoreOriginal.addEventListener('click', restoreOriginalDefaults);
+
     const resetEq = document.querySelector('.btn-reset-eq');
     if (resetEq) resetEq.addEventListener('click', resetEquityWeights);
 
@@ -856,6 +882,54 @@ function resetAllWeights() {
     state.customEquityWeights = null;
     state.customReserveWeights = null;
     renderReference();
+}
+
+async function saveAsDefault() {
+    const eq = getActiveEquityWeights();
+    const res = getActiveReserveWeights();
+    const btn = document.getElementById('btn-save-default');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+    try {
+        const resp = await fetch(API.weights, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ equity_weights: eq, reserve_weights: res }),
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        state.defaultEquityWeights = { ...eq };
+        state.defaultReserveWeights = { ...res };
+        state.customEquityWeights = null;
+        state.customReserveWeights = null;
+        state.hasSavedDefaults = true;
+        renderReference();
+    } catch (err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save as Default'; }
+        alert('Failed to save weights: ' + err.message);
+    }
+}
+
+async function restoreOriginalDefaults() {
+    if (!confirm('Restore all weights to the original configuration defaults? This will delete your saved custom defaults.')) {
+        return;
+    }
+
+    try {
+        const resp = await fetch(API.weights, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        state.defaultEquityWeights = { ...state.originalEquityWeights };
+        state.defaultReserveWeights = { ...state.originalReserveWeights };
+        state.customEquityWeights = null;
+        state.customReserveWeights = null;
+        state.hasSavedDefaults = false;
+        renderReference();
+    } catch (err) {
+        alert('Failed to restore defaults: ' + err.message);
+    }
 }
 
 
