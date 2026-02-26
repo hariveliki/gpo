@@ -23,6 +23,7 @@ let state = {
     hasSavedDefaults: false,
     customEquityWeights: null,
     customReserveWeights: null,
+    allocationStale: false,
 };
 
 let drawdownChart = null;
@@ -36,6 +37,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(btn.dataset.tab).classList.add('active');
+
+        if (btn.dataset.tab === 'tab-allocator' && state.allocationStale) {
+            loadAllocation();
+        }
     });
 });
 
@@ -399,6 +404,7 @@ async function loadAllocation() {
         if (data.error) throw new Error(data.error);
 
         state.allocation = data.allocation;
+        state.allocationStale = false;
         renderAllocation();
     } catch (err) {
         el('alloc-results').innerHTML = `<div class="card"><p style="color:var(--accent-red)">Error: ${err.message}</p></div>`;
@@ -598,6 +604,12 @@ function weightsPayload() {
     if (eq) payload.equity_weights = eq;
     if (res) payload.reserve_weights = res;
     return payload;
+}
+
+function markAllocationStale() {
+    if (state.allocation) {
+        state.allocationStale = true;
+    }
 }
 
 function labelFor(key) {
@@ -856,6 +868,7 @@ function onEquityWeightChange(e) {
         state.customEquityWeights = { ...state.defaultEquityWeights };
     }
     state.customEquityWeights[key] = val / 100;
+    markAllocationStale();
     renderReference();
 }
 
@@ -871,22 +884,26 @@ function onReserveWeightChange(e) {
         state.customReserveWeights = { ...state.defaultReserveWeights };
     }
     state.customReserveWeights[key] = val / 100;
+    markAllocationStale();
     renderReference();
 }
 
 function resetEquityWeights() {
     state.customEquityWeights = null;
+    markAllocationStale();
     renderReference();
 }
 
 function resetReserveWeights() {
     state.customReserveWeights = null;
+    markAllocationStale();
     renderReference();
 }
 
 function resetAllWeights() {
     state.customEquityWeights = null;
     state.customReserveWeights = null;
+    markAllocationStale();
     renderReference();
 }
 
@@ -910,6 +927,7 @@ async function saveAsDefault() {
         state.customEquityWeights = null;
         state.customReserveWeights = null;
         state.hasSavedDefaults = true;
+        markAllocationStale();
         renderReference();
     } catch (err) {
         if (btn) { btn.disabled = false; btn.textContent = 'Save as Default'; }
@@ -932,6 +950,7 @@ async function restoreOriginalDefaults() {
         state.customEquityWeights = null;
         state.customReserveWeights = null;
         state.hasSavedDefaults = false;
+        markAllocationStale();
         renderReference();
     } catch (err) {
         alert('Failed to restore defaults: ' + err.message);
