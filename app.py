@@ -115,6 +115,13 @@ def api_allocate():
         if custom_res:
             custom_res = {k: float(v) for k, v in custom_res.items()}
 
+        if not custom_eq or not custom_res:
+            saved_eq, saved_res = _get_effective_weights()
+            if not custom_eq:
+                custom_eq = saved_eq
+            if not custom_res:
+                custom_res = saved_res
+
         data = fetch_dashboard_data()
         dd = data["drawdown"]["drawdown_pct"]
         vix = data["vix"]
@@ -235,6 +242,13 @@ def api_simulate():
             custom_eq = {k: float(v) for k, v in custom_eq.items()}
         if custom_res:
             custom_res = {k: float(v) for k, v in custom_res.items()}
+
+        if not custom_eq or not custom_res:
+            saved_eq, saved_res = _get_effective_weights()
+            if not custom_eq:
+                custom_eq = saved_eq
+            if not custom_res:
+                custom_res = saved_res
 
         regime = detect_regime(dd, credit_spread=spread, vix=vix)
         result = compute_allocation(

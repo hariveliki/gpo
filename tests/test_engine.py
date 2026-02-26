@@ -294,3 +294,45 @@ class TestFlaskAPI:
         assert "original_equity_weights" in data
         assert "original_reserve_weights" in data
         assert data["original_equity_weights"] == data["equity_weights"]
+
+    def test_saved_defaults_apply_to_allocate(self, client):
+        """After saving custom defaults, allocate should use them even
+        when the request body does not include explicit weights."""
+        from app import WEIGHTS_FILE
+        try:
+            client.post("/api/weights", json={
+                "equity_weights": {"north_america": 0.50, "europe": 0.50},
+                "reserve_weights": {"inflation_linked": 0.50, "money_market": 0.40, "gold": 0.05, "cash": 0.05},
+            })
+            resp = client.post("/api/allocate", json={"portfolio_value": 100000})
+            data = resp.get_json()
+            positions = data["allocation"]["positions"]
+            eq_positions = [p for p in positions if p["region"] in ("north_america", "europe")]
+            assert len(eq_positions) == 2
+            assert abs(eq_positions[0]["target_weight"] - eq_positions[1]["target_weight"]) < 0.001
+        finally:
+            if WEIGHTS_FILE.exists():
+                WEIGHTS_FILE.unlink()
+
+    def test_saved_defaults_apply_to_simulate(self, client):
+        """After saving custom defaults, simulate should use them even
+        when the request body does not include explicit weights."""
+        from app import WEIGHTS_FILE
+        try:
+            client.post("/api/weights", json={
+                "equity_weights": {"north_america": 0.50, "europe": 0.50},
+            })
+            resp = client.post("/api/simulate", json={
+                "drawdown_pct": -5,
+                "credit_spread": 1.0,
+                "vix": 15,
+                "portfolio_value": 100000,
+            })
+            data = resp.get_json()
+            positions = data["allocation"]["positions"]
+            eq_positions = [p for p in positions if p["region"] in ("north_america", "europe")]
+            assert len(eq_positions) == 2
+            assert abs(eq_positions[0]["target_weight"] - eq_positions[1]["target_weight"]) < 0.001
+        finally:
+            if WEIGHTS_FILE.exists():
+                WEIGHTS_FILE.unlink()

@@ -437,9 +437,9 @@ function renderAllocation() {
         </tr>`;
     }
 
-    const customNote = hasCustomWeights()
-        ? `<div class="weights-status-bar modified" style="margin-bottom:16px">
-            <span>Using custom weights from Reference Tables.</span>
+    const customNote = hasNonDefaultWeights()
+        ? `<div class="weights-status-bar ${hasCustomWeights() ? 'modified' : 'saved'}" style="margin-bottom:16px">
+            <span>Using ${hasCustomWeights() ? 'unsaved custom' : 'saved custom'} weights from Reference Tables.</span>
             <button class="btn btn-sm btn-outline" onclick="document.querySelector('[data-tab=tab-reference]').click()">Edit Weights</button>
           </div>`
         : '';
@@ -587,10 +587,16 @@ function hasCustomWeights() {
     return state.customEquityWeights !== null || state.customReserveWeights !== null;
 }
 
+function hasNonDefaultWeights() {
+    return hasCustomWeights() || state.hasSavedDefaults;
+}
+
 function weightsPayload() {
+    const eq = getActiveEquityWeights();
+    const res = getActiveReserveWeights();
     const payload = {};
-    if (state.customEquityWeights) payload.equity_weights = state.customEquityWeights;
-    if (state.customReserveWeights) payload.reserve_weights = state.customReserveWeights;
+    if (eq) payload.equity_weights = eq;
+    if (res) payload.reserve_weights = res;
     return payload;
 }
 
