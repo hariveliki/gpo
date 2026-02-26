@@ -422,12 +422,27 @@ function renderAllocation() {
         ['inflation_linked','money_market','gold','cash'].includes(p.region)
     );
 
-    function posRow(p) {
+    function eqRow(p) {
         const region = p.region.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const sleeveWeight = a.equity_pct > 0 ? (p.target_weight / a.equity_pct) * 100 : 0;
         return `<tr>
             <td>${region}</td>
             <td>${p.etf_name}</td>
             <td class="mono">${p.isin}</td>
+            <td class="number">${fmtPct(sleeveWeight)}</td>
+            <td class="number">${fmtPct(p.target_weight * 100)}</td>
+            <td class="number" style="font-weight:600">${fmtEur(p.target_value)}</td>
+        </tr>`;
+    }
+
+    function resRow(p) {
+        const region = p.region.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const sleeveWeight = a.reserve_pct > 0 ? (p.target_weight / a.reserve_pct) * 100 : 0;
+        return `<tr>
+            <td>${region}</td>
+            <td>${p.etf_name}</td>
+            <td class="mono">${p.isin}</td>
+            <td class="number">${fmtPct(sleeveWeight)}</td>
             <td class="number">${fmtPct(p.target_weight * 100)}</td>
             <td class="number" style="font-weight:600">${fmtEur(p.target_value)}</td>
         </tr>`;
@@ -475,14 +490,14 @@ function renderAllocation() {
 
             <h4 style="margin: 10px 0 8px; color:var(--accent-blue);">Equity Sleeve (Welt AG)</h4>
             <table class="data-table">
-                <thead><tr><th>Region</th><th>ETF</th><th>ISIN</th><th>Weight</th><th>Target Value</th></tr></thead>
-                <tbody>${equityPositions.map(posRow).join('')}</tbody>
+                <thead><tr><th>Region</th><th>ETF</th><th>ISIN</th><th>Sleeve %</th><th>Portfolio %</th><th>Target Value</th></tr></thead>
+                <tbody>${equityPositions.map(eqRow).join('')}</tbody>
             </table>
 
             <h4 style="margin: 20px 0 8px; color:var(--accent-amber);">Investment Reserve</h4>
             <table class="data-table">
-                <thead><tr><th>Component</th><th>ETF</th><th>ISIN</th><th>Weight</th><th>Target Value</th></tr></thead>
-                <tbody>${reservePositions.map(posRow).join('')}</tbody>
+                <thead><tr><th>Component</th><th>ETF</th><th>ISIN</th><th>Sleeve %</th><th>Portfolio %</th><th>Target Value</th></tr></thead>
+                <tbody>${reservePositions.map(resRow).join('')}</tbody>
             </table>
         </div>
 
