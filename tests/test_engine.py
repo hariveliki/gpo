@@ -105,6 +105,29 @@ class TestAllocation:
         result = compute_allocation(100000, regime)
         assert 0 < result.weighted_ter < 0.5
 
+    def test_custom_equity_weights(self):
+        regime = detect_regime(-5.0, credit_spread=1.0, vix=15)
+        custom_eq = {"north_america": 0.50, "europe": 0.50}
+        result = compute_allocation(100000, regime, equity_weights=custom_eq)
+        eq_positions = [p for p in result.positions if p.region in custom_eq]
+        assert len(eq_positions) == 2
+        assert abs(eq_positions[0].target_value - eq_positions[1].target_value) < 1.0
+
+    def test_custom_reserve_weights(self):
+        regime = detect_regime(-5.0, credit_spread=1.0, vix=15)
+        custom_res = {"inflation_linked": 1.0, "money_market": 0.0, "gold": 0.0, "cash": 0.0}
+        result = compute_allocation(100000, regime, reserve_weights=custom_res)
+        res_positions = [p for p in result.positions if p.region == "inflation_linked"]
+        assert len(res_positions) == 1
+        assert res_positions[0].target_value == pytest.approx(20000, abs=1.0)
+
+    def test_custom_weights_allocation_sums_correctly(self):
+        regime = detect_regime(-5.0, credit_spread=1.0, vix=15)
+        custom_eq = {"north_america": 0.30, "europe": 0.30, "emerging_markets": 0.20, "small_caps": 0.10, "japan": 0.05, "pacific_ex_jp": 0.05}
+        result = compute_allocation(100000, regime, equity_weights=custom_eq)
+        total = sum(p.target_value for p in result.positions)
+        assert abs(total - 100000) < 1.0
+
 
 # --------------------------------------------------------------------------- #
 # Recovery Protocol
@@ -203,3 +226,29 @@ class TestFlaskAPI:
         data = resp.get_json()
         assert "allocation" in data
         assert data["allocation"]["portfolio_value"] == 100000
+
+    def test_simulate_with_custom_weights(self, client):
+        custom_eq = {"north_america": 0.50, "europe": 0.50}
+        resp = client.post("/api/simulate", json={
+            "drawdown_pct": -5,
+            "credit_spread": 1.0,
+            "vix": 15,
+            "portfolio_value": 100000,
+            "equity_weights": custom_eq,
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        positions = data["allocation"]["positions"]
+        eq_positions = [p for p in positions if p["region"] in custom_eq]
+        assert len(eq_positions) == 2
+        assert abs(eq_positions[0]["target_weight"] - eq_positions[1]["target_weight"]) < 0.001
+
+    def test_allocate_with_custom_reserve_weights(self, client):
+        custom_res = {"inflation_linked": 0.80, "money_market": 0.10, "gold": 0.05, "cash": 0.05}
+        resp = client.post("/api/allocate", json={
+            "portfolio_value": 100000,
+            "reserve_weights": custom_res,
+        })
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "allocation" in data

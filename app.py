@@ -76,21 +76,31 @@ def api_dashboard():
 def api_allocate():
     """
     Compute target allocations for a given portfolio value.
-    Accepts JSON: { "portfolio_value": 100000, "current_holdings": {...} }
+    Accepts JSON: { "portfolio_value": 100000, "current_holdings": {...},
+                     "equity_weights": {...}, "reserve_weights": {...} }
     """
     try:
         body = request.get_json(force=True)
         portfolio_value = float(body.get("portfolio_value", 100000))
         current_holdings = body.get("current_holdings", {})
+        custom_eq = body.get("equity_weights")
+        custom_res = body.get("reserve_weights")
 
-        # Detect current regime from live data
+        if custom_eq:
+            custom_eq = {k: float(v) for k, v in custom_eq.items()}
+        if custom_res:
+            custom_res = {k: float(v) for k, v in custom_res.items()}
+
         data = fetch_dashboard_data()
         dd = data["drawdown"]["drawdown_pct"]
         vix = data["vix"]
         spread = data["credit_spread"]
         regime = detect_regime(dd, credit_spread=spread, vix=vix)
 
-        result = compute_allocation(portfolio_value, regime, current_holdings)
+        result = compute_allocation(
+            portfolio_value, regime, current_holdings,
+            equity_weights=custom_eq, reserve_weights=custom_res,
+        )
 
         return jsonify({
             "allocation": {
@@ -132,7 +142,8 @@ def api_reference():
 def api_simulate():
     """
     Simulate a regime for user-supplied drawdown and spread values.
-    JSON: { "drawdown_pct": -25, "credit_spread": 3.5, "vix": 35, "portfolio_value": 100000 }
+    JSON: { "drawdown_pct": -25, "credit_spread": 3.5, "vix": 35,
+            "portfolio_value": 100000, "equity_weights": {...}, "reserve_weights": {...} }
     """
     try:
         body = request.get_json(force=True)
@@ -140,14 +151,23 @@ def api_simulate():
         spread = body.get("credit_spread")
         vix = body.get("vix")
         pv = float(body.get("portfolio_value", 100000))
+        custom_eq = body.get("equity_weights")
+        custom_res = body.get("reserve_weights")
 
         if spread is not None:
             spread = float(spread)
         if vix is not None:
             vix = float(vix)
+        if custom_eq:
+            custom_eq = {k: float(v) for k, v in custom_eq.items()}
+        if custom_res:
+            custom_res = {k: float(v) for k, v in custom_res.items()}
 
         regime = detect_regime(dd, credit_spread=spread, vix=vix)
-        result = compute_allocation(pv, regime)
+        result = compute_allocation(
+            pv, regime,
+            equity_weights=custom_eq, reserve_weights=custom_res,
+        )
 
         return jsonify({
             "regime": dataclasses.asdict(regime),
